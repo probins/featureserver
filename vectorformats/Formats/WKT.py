@@ -78,22 +78,18 @@ def to_wkt (geom):
 
     elif geom["type"] == "MultiPoint":
         pts = ",".join(coords_to_wkt((ring,)) for ring in coords)
-        return "MUTLIPOINT(%s)" % str(pts)
+        return "MULTIPOINT(%s)" % str(pts)
 
     elif geom["type"] == "MultiLineString":
         pts = ",".join( "(" +  coords_to_wkt(ring) + ")" for ring in coords  )
-        return "MultiLineString(%s)" % str(pts)
+        return "MULTILINESTRING(%s)" % str(pts)
 
     elif geom["type"] == "MultiPolygon":
         poly_str = []
         for coord_list in coords:
             poly_str.append( "((" + ",".join( coords_to_wkt((ring,))  for ring in coord_list) + "))" )
-        return "MultiPolygon(%s)" % ", ".join(poly_str)
+        return "MULTIPOLYGON(%s)" % ", ".join(poly_str)
 
 
     else:
         raise Exception("Couldn't create WKT from geometry of type %s (%s). Only Point, Line, Polygon are supported." % (geom['type'], geom))
-
-
-
-

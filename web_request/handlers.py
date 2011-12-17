@@ -2,7 +2,7 @@
 
 # BSD Licensed, Copyright (c) 2006-2008 MetaCarta, Inc.
 
-import sys, os, traceback
+import sys, os, traceback, urllib
 import cgi as cgimod
 from web_request.response import Response
 
@@ -194,7 +194,7 @@ def cgi (dispatch_function):
         fields = cgimod.FieldStorage()
         try:
             for key in fields.keys(): 
-                params[key.lower()] = fields[key].value
+                params[key.lower()] = urllib.unquote(fields[key].value)
         except TypeError:
             pass
         

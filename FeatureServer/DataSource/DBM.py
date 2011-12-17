@@ -105,7 +105,7 @@ class DBM (DataSource):
                     skip  = False
                     for key, val in action.attributes.items():
                         if (key not in props and val is not None) or \
-                           (key in props and str(props[key]) != val):
+                           (key in props and str(props[key].encode("utf-8")) != val):
                             skip = True
                             break
                     if skip: continue

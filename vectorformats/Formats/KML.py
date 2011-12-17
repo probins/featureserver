@@ -54,6 +54,21 @@ class KML(Format):
         if feature.properties.has_key("styleUrl"):
             styleUrl = feature.properties['styleUrl']
         
+        attrib_fields = []
+        attrib_fields.append( "<Data name=\"fid\"><value>%s</value></Data>" % (feature.id) )
+        #attrib_fields.append( "<Data name=\"bbox\"><value>%s</value></Data>" % (feature.get_bbox()) )
+        xmin, ymin, xmax, ymax = feature.get_bbox()
+        attrib_fields.append( "<Data name=\"xmin\"><value>%s</value></Data><Data name=\"ymin\"><value>%s</value></Data><Data name=\"xmax\"><value>%s</value></Data><Data name=\"ymax\"><value>%s</value></Data>" % (xmin, ymin, xmax, ymax) )
+        
+        for key, value in feature.properties.items():
+            key = re.sub(r'\W', '_', key)
+            if key in ["title", "description", "styleUrl"]: continue
+            attr_value = value
+            if isinstance(attr_value, str):
+                attr_value = unicode(attr_value, "utf-8")
+            if hasattr(attr_value,"replace"): 
+                attr_value = attr_value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            attrib_fields.append( "<Data name=\"%s\"><value>%s</value></Data>" % (key, attr_value) )
         attr_fields = []
         for key, value in feature.properties.items():
             key = re.sub(r'\W', '_', key)
@@ -68,18 +83,22 @@ class KML(Format):
         if self.url is not None:
             edit_url = "%s/%s/%s.kml" % (self.url, self.layername, feature.id)  
             link = """<atom:link href="%s" type="edit" />""" % edit_url
+        #<description>%s</description>
+        #<Metadata>
+        #  %s
+        #</Metadata>
         
         xml = """
         <Placemark id="%s">
         <name>%s</name>
-        <description>%s</description>
         <styleUrl>%s</styleUrl>
         %s
-        <Metadata>
+        <ExtendedData>
           %s
-        </Metadata>
+        </ExtendedData>
         %s
-        </Placemark>""" % (feature.id, name, description, styleUrl, link, "\n".join(attr_fields), self.geometry_to_place(feature.geometry)) 
+        </Placemark>""" % (feature.id, name, styleUrl, link, "\n".join(attrib_fields), self.geometry_to_place(feature.geometry)) 
+        #description, 
         return xml
     
     def geometry_to_place(self, geometry):
@@ -116,7 +135,7 @@ class KML(Format):
             
             doc = m.parseString(data)
             entries = doc.getElementsByTagName("Placemark")
-            entries.reverse()
+            #entries.reverse()
             for entry in entries:
                 feature_obj = self.entry_to_feature(entry)
                 actions.append(feature_obj)
@@ -128,25 +147,26 @@ class KML(Format):
         points = placemark_dom.getElementsByTagName("Point")
         lines = placemark_dom.getElementsByTagName("LineString")
         polys = placemark_dom.getElementsByTagName("Polygon")
+
         if len(points):
             coords = points[0].getElementsByTagName("coordinates")[0].firstChild.nodeValue.strip().split(",")
             feature.geometry = {'type':'Point', 'coordinates':map(float,coords)}
         elif len(lines):
             coordstring = lines[0].getElementsByTagName("coordinates")[0].firstChild.nodeValue.strip()
-            coords = coordstring.split(" ")
-            coords = map(lambda x: x.split(","), coords)
+            coords = coordstring.split()
+            coords = map(lambda x: map(float,x.split(",")), coords)
             feature.geometry = {'type':'LineString', 'coordinates':coords}
         elif len(polys):
             rings = []
             poly = polys[0]
             outer = poly.getElementsByTagName("outerBoundaryIs")[0]
             outer_coordstring = outer.getElementsByTagName("coordinates")[0].firstChild.nodeValue.strip()
-            outer_coords = outer_coordstring.split(" ")
+            outer_coords = outer_coordstring.split()
             outer_coords = map(lambda x: map(float,x.split(",")), outer_coords)
             rings.append(outer_coords)
             inners = poly.getElementsByTagName("innerBoundaryIs")
             for inner in inners:
-                inner_coords = inner.getElementsByTagName("coordinates")[0].firstChild.nodeValue.strip().split(" ")
+                inner_coords = inner.getElementsByTagName("coordinates")[0].firstChild.nodeValue.strip().split()
                 inner_coords = map(lambda x: map(float,x.split(",")), inner_coords)
                 rings.append(inner_coords)
             

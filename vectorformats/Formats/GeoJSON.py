@@ -11,6 +11,19 @@ except:
     except Exception, E:
         raise Exception("simplejson is required for using the GeoJSON service. (Import failed: %s)" % E)
 
+class PrettyFloat(float):
+    def __repr__(self):
+        return '%.15g' % self
+
+def pretty_floats(obj):
+    if isinstance(obj, float):
+        return PrettyFloat(obj)
+    elif isinstance(obj, dict):
+        return dict((k, pretty_floats(v)) for k, v in obj.items())
+    elif isinstance(obj, (list, tuple)):
+        return map(pretty_floats, obj)             
+    return obj
+
 class GeoJSON(Format):
     """
     The most complete Format in vectorformats library. This class is designed
@@ -58,6 +71,7 @@ class GeoJSON(Format):
         return result
     
     def encode_feature(self, feature):
+        feature.geometry = pretty_floats(feature.geometry)
         return {'type':"Feature", 
             "id": feature.id, 
             "geometry": feature.geometry, 

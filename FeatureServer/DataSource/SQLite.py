@@ -21,10 +21,10 @@ class SQLite (DataSource):
     wkt_linestring_match = re.compile(r'\(([^()]+)\)')
 
 
-    query_action_types = ['lt', 'gt', 'like', 'gte', 'lte']
+    query_action_types = ['lt', 'gt', 'like', 'gte', 'lte', 'ne']
 
     query_action_sql = {'lt': '<', 'gt': '>' , 'like':'like'
-                        , 'gte': '>=', 'lte': '<='}
+                        , 'gte': '>=', 'lte': '<=', 'ne': '!='}
 
 
     def __init__(self, name, srid = 4326, order=None, writable = True, **args):
@@ -113,7 +113,8 @@ END;
         #values = ["%%(%s)s" % self.geom_col]
         values = []
         for key, val in feature.properties.items():
-            values.append(":%s" % key)
+#            values.append(":%s" % key)
+            values.append(val)
         return values
 
     def feature_predicates (self, feature):
@@ -140,38 +141,35 @@ END;
         cursor = self.db.cursor()
         res = cursor.execute(str(sql), values)
         action.id = res.lastrowid
-        #self.db.commit()
 
         insert_tuples = [(res.lastrowid, k, v) for k,v in feature.properties.items()]
         sql = "INSERT INTO \"%s_attrs\" (feature_id, key, value) VALUES (?, ?, ?)" % (self.table,) 
         cursor.executemany(sql,insert_tuples)
 
-        #self.db.commit()
         return self.select(action)
         
 
     def update (self, action):
         feature = action.feature
         bbox = feature.get_bbox()
-        predicates =  self.feature_predicates(feature) 
 
         # this assumes updates can not introduce new attrs.... fix?
         sql = "UPDATE \"%s_attrs\" SET value = :value WHERE key = :key AND %s = %d" % (
                     self.table, self.fid_col, action.id )
 
         cursor = self.db.cursor()
-        predicate_list = []
-        for i in range(0, len(predicates) - 1, 2):
-            predicate_list.append( dict(key=predicates[i], value=predicates[i+1]) )
-
-        cursor.executemany(str(sql), predicate_list)
+        columns = self.column_names(feature)
+        values  = self.value_formats(feature)
+        kv_list = []
+        for pair in zip(columns, values):
+            kv_list.append( dict(key=pair[0], value=pair[1]) )
+        cursor.executemany(str(sql), kv_list)
 
         # should check if changed before doing this ...
-        geom_sql = "UPDATE %s SET %s = ?, xmin = ?, ymin = ?, xmax = ?, ymax = ? WHERE %s = %d" \
+        geom_sql = "UPDATE %s SET %s = ?, xmin = ?, ymin = ?, xmax = ?, ymax = ?, date_modified = datetime('now', 'localtime') WHERE %s = %d" \
                            % (self.table, self.geom_col, self.fid_col, action.id)
         cursor.execute(geom_sql,  [WKT.to_wkt(feature.geometry)] + list(bbox))
 
-        #self.db.commit()
         return self.select(action)
         
     def delete (self, action):
@@ -184,7 +182,6 @@ END;
         sql = "DELETE FROM \"%s_attrs\" WHERE %s = :%s" % (
                     self.table, self.fid_col, self.fid_col )
         cursor.execute(str(sql), {self.fid_col: action.id})
-        #self.db.commit()
         return []
 
 
@@ -205,10 +202,9 @@ END;
             
             sql = "SELECT DISTINCT(t.feature_id) as feature_id, t.%s as %s,\
             t.%s as %s FROM \"%s\" t LEFT JOIN \"%s_attrs\" a ON a.feature_id =\
-            t.feature_id " % ( self.geom_col, self.geom_col, self.fid_col, self.fid_col,  self.table, self.table )
+            t.feature_id WHERE 1 " % ( self.geom_col, self.geom_col, self.fid_col, self.fid_col,  self.table, self.table )
             select_dict = {}
             if filters:
-                sql += "WHERE 1 "
                 for ii, (key, value) in enumerate(filters):
                     select_dict['key%i' % ii] = key
                     if isinstance(value, dict):
@@ -238,7 +234,7 @@ END;
                 sql += " OFFSET %d" % action.startfeature
             cursor.execute(str(sql), select_dict)
             results = cursor.fetchall()
-
+        
         for row in results:
             attrs = cursor.execute(sql_attrs, dict(feature_id=row['feature_id']) ).fetchall()
             d = {}
