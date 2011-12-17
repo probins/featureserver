@@ -13,16 +13,16 @@ The commit in _mychanges_ branch is the changes I have made. These were all subm
 
 * FeatureServer/DataSource/DBM: allow non-ASCII chars in queries (UTF-8)
 * FeatureServer/DataSource/SQLite: 
-- add not-equal query-action-type
-- remove unnecessary commits
-- fix update of attributes
-- update date_modified if geometry changed
+-- add not-equal query-action-type
+-- remove unnecessary commits
+-- fix update of attributes
+-- update date_modified if geometry changed
 * vectorformats/Formats/GeoJSON: stop floats from creating unnecessary decimals, e.g. 43.12 output as 43.12 not 43.119999999999997
 * vectorformats/Formats/KML:
-- replace deprecated MetaData for attributes with ExtendedData
-- stop reversing sequence of linestring nodes
-- convert linestrings to floats
-- remove description (output as any other ExtendedData attribute)
-- handle whitespace on read
+-- replace deprecated MetaData for attributes with ExtendedData
+-- stop reversing sequence of linestring nodes
+-- convert linestrings to floats
+-- remove description (output as any other ExtendedData attribute)
+-- handle whitespace on read
 * vectorformats/Formats/WKT: correct typo and make geometry types consistently upper-case
 * web_request/handlers: allow for url-encoding in querystring
